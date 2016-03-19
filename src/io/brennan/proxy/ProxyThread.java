@@ -43,7 +43,8 @@ public class ProxyThread extends Thread {
                 logger.finest("Client Request:\n" + request.reassembleHeaders());
 
                 // Check whether the client would like us to keep the connection alive.
-                if (headers.contains("Connection") && headers.get("Connection").equals("keep-alive")) {
+                if (headers.contains("Connection") && headers.get("Connection").equals("keep-alive") ||
+                        headers.contains("Proxy-Connection") && headers.get("Proxy-Connection").equals("keep-alive")) {
                     clientWantsClose = false;
                 }
 
