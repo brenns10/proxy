@@ -85,14 +85,7 @@ public class HttpRequest extends HttpMessage {
         return version;
     }
 
-    /**
-     * Return the hostname of the destination!  This will search for it in two ways:
-     * - If the request included a hostname in the URL, use that.
-     * - Otherwise, look for a HTTP Host header.
-     * If neither are present, I'm pretty sure this will throw an NPE, soooooo....
-     * @return hostname of request
-     */
-    public String getDestinationHost() {
+    private String getHostString() {
         if (this.hostname != null) {
             return this.hostname;
         } else {
@@ -104,11 +97,34 @@ public class HttpRequest extends HttpMessage {
     }
 
     /**
-     * Return the destination port.  This should normally be 80, but not all hosts necessarily communicate on port 80.
-     * So, this function *should* return the correct port as specified by the colon in the host name.
+     * Return the hostname of the destination!  This will search for it in two ways:
+     * - If the request included a hostname in the URL, use that.
+     * - Otherwise, look for a HTTP Host header.
+     * If neither are present, I'm pretty sure this will throw an NPE, soooooo....
+     * @return hostname of request
+     */
+    public String getDestinationHost() {
+        String hostString = getHostString();
+        int colonLocation = hostString.indexOf(":");
+        if (colonLocation == -1) {
+            return hostString;
+        } else {
+            return hostString.substring(0, colonLocation);
+        }
+    }
+
+    /**
+     * Return the destination port.  This is normally 80, but a different host may have been specified in the hostname.
+     * So, this function checks for a port number in the hostname, and if one is not found, returns port 80.
      * @return port number for the destination host
      */
     public int getDestinationPort() {
-        return 80; // TODO: allow for hosts with different ports to be specified here
+        String hostString = getHostString();
+        int colonLocation = hostString.indexOf(":");
+        if (colonLocation == -1) {
+            return 80;
+        } else {
+            return Integer.parseInt(hostString.substring(colonLocation+1));
+        }
     }
 }
