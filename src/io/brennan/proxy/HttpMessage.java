@@ -86,16 +86,17 @@ public abstract class HttpMessage {
      * The unparsed header data (not including first line) read from the socket.
      */
     protected String rawHeaders;
+
     /**
-     * The parsed headers.  I use a list of strings as the value, because a single header key can occur multiple times.
+     * A HttpHeaders object manages headers so we don't need to worry about them.
      */
-    protected Map<String, List<String>> headers;
+    protected HttpHeaders headers;
 
     /**
      * Return the header mapping.
      * @return Header mapping.
      */
-    public Map<String,List<String>> getHeaders() {
+    public HttpHeaders getHeaders() {
         return headers;
     }
 
@@ -107,7 +108,7 @@ public abstract class HttpMessage {
     protected HttpMessage(InputStream stream) throws IOException {
         this.stream = stream;
         this.readHeaders();
-        this.parseHeaders();
+        this.headers = new HttpHeaders(this.rawHeaders);
     }
 
     /**
@@ -149,51 +150,7 @@ public abstract class HttpMessage {
         }
 
         this.rawHeaders = bstr.toString();
-    }
-
-    /**
-     * Takes the headers in this.rawHeaders and transforms them into a map of headers.  readHeaders() should have been
-     * called first, or else the behavior is invalid!
-     */
-    private void parseHeaders() {
-        // Get rid of CRLFCRLF, we don't really want it for our parsing purposes.
-        this.rawHeaders = this.rawHeaders.substring(0, this.rawHeaders.length() - 4);
-        String[] lines = this.rawHeaders.split("\r\n");
-        List<String> joinedLines = new LinkedList<>();
-
-        // Join lines which are continued.  This is actually a pretty gross function.
-        // TODO improve line continuation parsing in headers.
-        String prev = null;
-        for (String line : lines) {
-            if (prev == null) {
-                prev = line;
-                continue;
-            }
-            if (line.startsWith(" ") || line.startsWith("\t")) {
-                prev += line;
-            } else {
-                joinedLines.add(prev);
-                prev = line;
-            }
-        }
-        if (prev != null) {
-            joinedLines.add(prev);
-        }
-
-        // Now, actually map keys to values in our header map.
-        this.headers = new HashMap<>();
-        for (String line : joinedLines) {
-            int colonIndex = line.indexOf(":");
-            String key = line.substring(0, colonIndex);
-            String value = line.substring(colonIndex + 1).trim();
-            if (this.headers.containsKey(key)) {
-                this.headers.get(key).add(value);
-            } else {
-                List<String> values = new ArrayList<>();
-                values.add(value);
-                this.headers.put(key, values);
-            }
-        }
+        this.rawHeaders = this.rawHeaders.substring(0, this.rawHeaders.length() - 4);  // remove CRLF CRLF
     }
 
     /**
@@ -201,10 +158,10 @@ public abstract class HttpMessage {
      * @return true when body present
      */
     public BodyType bodyType() {
-        if (this.headers.containsKey("Content-Length")){
+        if (this.headers.contains("Content-Length")){
             return BodyType.ContentLength;
-        } else if (this.headers.containsKey("Transfer-Encoding")) {
-            String value = this.headers.get("Transfer-Encoding").get(0).toLowerCase();
+        } else if (this.headers.contains("Transfer-Encoding")) {
+            String value = this.headers.get("Transfer-Encoding").toLowerCase();
             if (value.equals("identity")) {
                 return Identity;
             } else {
@@ -223,15 +180,7 @@ public abstract class HttpMessage {
         StringBuilder sb = new StringBuilder();
         sb.append(this.reassembleFirstLine());
         sb.append("\r\n");
-        for (Map.Entry<String, List<String>> entry : this.headers.entrySet()) {
-            String key = entry.getKey();
-            for (String value : entry.getValue()) {
-                sb.append(key);
-                sb.append(": ");
-                sb.append(value);
-                sb.append("\r\n");
-            }
-        }
+        sb.append(this.headers.assemble());
         sb.append("\r\n");
         return sb.toString();
     }
@@ -300,7 +249,7 @@ public abstract class HttpMessage {
      * @throws IOException
      */
     private void forwardContentLengthBody(OutputStream os) throws IOException {
-        int contentLength = Integer.parseInt(this.headers.get("Content-Length").get(0));
+        int contentLength = Integer.parseInt(this.headers.get("Content-Length"));
         sendNBytes(this.stream, os, contentLength);
     }
 
@@ -309,7 +258,7 @@ public abstract class HttpMessage {
      */
     public void forwardMessage(OutputStream os) throws IOException {
         if (this.bodyType() == Identity) {
-            this.headers.get("Transfer-Encoding").set(0, "chunked");
+            this.headers.set("Transfer-Encoding", "chunked");
         }
         this.forwardHeaders(os);
         switch (this.bodyType()) {

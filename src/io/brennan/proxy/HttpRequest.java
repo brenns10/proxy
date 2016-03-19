@@ -89,10 +89,7 @@ public class HttpRequest extends HttpMessage {
         if (this.hostname != null) {
             return this.hostname;
         } else {
-            List<String> header = this.headers.get("Host");
-            String host = header.get(0);
-            host = host.trim();
-            return host;
+            return this.headers.get("Host");
         }
     }
 
