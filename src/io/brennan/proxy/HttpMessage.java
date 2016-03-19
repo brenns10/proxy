@@ -55,6 +55,24 @@ public abstract class HttpMessage {
     }
 
     /**
+     * Helper function: send a certain number of bytes from an input stream to an output stream, using a buffer.
+     * @param input Stream to send from.
+     * @param output Stream to send to.
+     * @param nbytes Number of bytes to send.
+     * @throws IOException
+     */
+    static void sendNBytes(InputStream input, OutputStream output, int nbytes) throws IOException {
+        byte[] buffer = new byte[BUFFER_SIZE];
+        int sent = 0;
+        while (sent < nbytes) {
+            int read = input.read(buffer, 0, Math.min(nbytes - sent, buffer.length));
+            output.write(buffer, 0, read);
+            sent += read;
+        }
+    }
+
+
+    /**
      * All of my body forwarding messages use byte arrays so they can read and write larger blocks of bytes at a time,
      * rather than just byte by byte.
      */
@@ -252,8 +270,6 @@ public abstract class HttpMessage {
      * @throws IOException
      */
     private void forwardChunkedBody(OutputStream os) throws IOException {
-        byte[] chunkbuffer = new byte[BUFFER_SIZE];
-
         for(;;) {
             // First, read the header.  That is, read until \r\n
             byte[] header = readUntilNewline(this.stream);
@@ -271,15 +287,10 @@ public abstract class HttpMessage {
                 break;
             }
 
-            // Send the chunk: Alternate reading into buffer and writing until chunk is done.
-            int sent = 0;
-            chunkSize += 2; // to account for \r\n
-            while (sent < chunkSize) {
-                int read = this.stream.read(chunkbuffer, 0, Math.min(chunkSize - sent, chunkbuffer.length));
-                os.write(chunkbuffer, 0, read);
-                sent += read;
-            }
+            // Send the chunk, plus the CRLF
+            sendNBytes(this.stream, os, chunkSize + 2);
         }
+        // TODO allow headers after the chunked body, as mentioned in RFC 2616.
         os.write("\r\n".getBytes());
     }
 
@@ -290,14 +301,7 @@ public abstract class HttpMessage {
      */
     private void forwardContentLengthBody(OutputStream os) throws IOException {
         int contentLength = Integer.parseInt(this.headers.get("Content-Length").get(0));
-        byte[] buffer = new byte[BUFFER_SIZE];
-
-        int sent = 0;
-        while (sent < contentLength) {
-            int read = this.stream.read(buffer, 0, Math.min(contentLength - sent, buffer.length));
-            os.write(buffer, 0, read);
-            sent += read;
-        }
+        sendNBytes(this.stream, os, contentLength);
     }
 
     /**
