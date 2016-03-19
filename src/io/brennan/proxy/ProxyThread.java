@@ -103,8 +103,8 @@ public class ProxyThread extends Thread {
                 }
             }
         } catch (IOException e) {
-            System.err.println("IO Error in ProxyThread:");
-            System.err.println(e.getMessage());
+            System.err.println("Thread " + getId() + " exception: " + e.getMessage());
+            e.printStackTrace();
         } finally {
             try {
                 this.client.close();
