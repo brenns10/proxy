@@ -64,6 +64,11 @@ public class ProxyThread extends Thread {
                 headers.remove("Proxy-Connection");
                 headers.set("Connection", "close");
                 headers.set("Host", request.getDestinationHost());
+                if (headers.contains("Upgrade") && (headers.get("Upgrade").equals("h2") || headers.get("Upgrade").equals("h2c"))) {
+                    headers.remove("Upgrade"); // we shall not support no HTTP/2
+                    // but let's be honest, if your browser is dumb enough to ask an HTTP/1.1 proxy to upgrade to
+                    // HTTP/2, it kinda deserves to have everything crash and burn.
+                }
 
                 // Open a socket to the server, and forward the message.
                 Socket server = new Socket(request.getDestinationHost(), request.getDestinationPort());
