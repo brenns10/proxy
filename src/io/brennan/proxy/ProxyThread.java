@@ -96,8 +96,10 @@ public class ProxyThread extends Thread {
                 }
             }
         } catch (IOException e) {
-            System.err.println("Thread " + getId() + " exception: " + e.getMessage());
-            e.printStackTrace();
+            if (!e.getMessage().equals( "Unexpected end of stream.")) {
+                System.err.println("Thread " + getId() + " exception: " + e.getMessage());
+                e.printStackTrace();
+            }
         } finally {
             try {
                 this.client.close();
