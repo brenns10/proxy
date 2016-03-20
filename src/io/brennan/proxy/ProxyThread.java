@@ -38,6 +38,18 @@ public class ProxyThread extends Thread {
                 HttpRequest request = new HttpRequest(this.client.getInputStream());
                 HttpHeaders headers = request.getHeaders();
 
+                // Handling for the CONNECT method.
+                if (request.getMethod().equals("CONNECT")) {
+                    String[] urlparts = request.getUrl().split(":", 2);
+                    Socket server = new Socket(urlparts[0], Integer.parseInt(urlparts[1]));
+                    logger.info("Thread " + getId() + ": " + request.reassembleFirstLine() + "; 200 OK -> " +
+                            urlparts[0] + ":" + urlparts[1]);
+                    client.getOutputStream().write("204 No Content\r\n\r\n".getBytes());
+                    new ConnectTunnelOneDirection(client, server, "client to server").start();
+                    new ConnectTunnelOneDirection(server, client, "server to client").run();
+                    return;
+                }
+
                 // Log information about the request we received.
                 logger.fine(request.reassembleFirstLine() + " [BodyType " + request.bodyType() + "]" + getId());
                 logger.finest("Client Request:\n" + request.reassembleHeaders());
