@@ -23,6 +23,9 @@ public class HttpHeaders {
      */
     public HttpHeaders(String rawHeaders) {
         this.headers = new LinkedHashMap<>(); // Linked Hash Map remembers the order of keys inserted.
+        if (rawHeaders.equals("")) {
+            return; // empty headers are no fun.
+        }
         String[] lines = rawHeaders.split("\r\n");
         String lastKey = null;
         for (String line : lines) {

@@ -131,25 +131,14 @@ public abstract class HttpMessage {
         ByteArrayOutputStream bstr = new ByteArrayOutputStream();
 
         // This reads until CRLFCRLF, which is when the headers are done.
-        int state = 0;
-        while (state != 4) {
-            int character = this.stream.read();
-            if (character == -1) {
-                System.out.println("Early termination in readHeaders()");
-                break;
-            }
-            bstr.write(character);
-            if (character == '\r' && (state == 0 || state == 2)) {
-                state++;
-            } else if (character == '\n' && (state == 1 || state == 3)) {
-                state++;
-            } else {
-                state = 0;
-            }
-        }
+        byte[] line;
+        do {
+            line = readUntilNewline(this.stream);
+            bstr.write(line);
+        } while (line.length != 2);
 
         this.rawHeaders = bstr.toString();
-        this.rawHeaders = this.rawHeaders.substring(0, this.rawHeaders.length() - 4);  // remove CRLF CRLF
+        this.rawHeaders = this.rawHeaders.trim();  // remove CRLF CRLF
     }
 
     /**
