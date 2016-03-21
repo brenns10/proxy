@@ -18,6 +18,26 @@ public class ProxyThread extends Thread {
         this.client = client;
     }
 
+    private void connectForwarding(Socket client, HttpRequest request) throws IOException {
+        String[] urlparts = request.getUrl().split(":", 2);
+        Socket server;
+        try {
+            server = new Socket(urlparts[0], Integer.parseInt(urlparts[1]));
+        } catch (Exception e) {
+            // When we can't connect to the server, we should return a error response.
+            try {
+                client.getOutputStream().write("404 Not Found\r\n\r\n".getBytes());
+            } finally {
+                return;
+            }
+        }
+        logger.info("Thread " + getId() + ": " + request.reassembleFirstLine() + "; 200 OK -> " +
+                urlparts[0] + ":" + urlparts[1]);
+        client.getOutputStream().write("204 No Content\r\n\r\n".getBytes());
+        new ConnectTunnelOneDirection(client, server, "client to server").start();
+        new ConnectTunnelOneDirection(server, client, "server to client").run();
+    }
+
     public void run() {
         logger.fine("Starting thread " + this.getId());
         try {
@@ -37,13 +57,7 @@ public class ProxyThread extends Thread {
 
                 // Handling for the CONNECT method.
                 if (request.getMethod().equals("CONNECT")) {
-                    String[] urlparts = request.getUrl().split(":", 2);
-                    Socket server = new Socket(urlparts[0], Integer.parseInt(urlparts[1]));
-                    logger.info("Thread " + getId() + ": " + request.reassembleFirstLine() + "; 200 OK -> " +
-                            urlparts[0] + ":" + urlparts[1]);
-                    client.getOutputStream().write("204 No Content\r\n\r\n".getBytes());
-                    new ConnectTunnelOneDirection(client, server, "client to server").start();
-                    new ConnectTunnelOneDirection(server, client, "server to client").run();
+                    connectForwarding(this.client, request);
                     return;
                 }
 
