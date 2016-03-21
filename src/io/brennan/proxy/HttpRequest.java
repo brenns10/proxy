@@ -2,7 +2,6 @@ package io.brennan.proxy;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.List;
 
 /**
  * This class represents an HttpMessage that is specifically a request.  It implements operations that deal with the
